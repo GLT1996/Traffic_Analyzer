@@ -1,0 +1,7 @@
+scapy>=2.5.0
+PyQt6>=6.5.0
+dpkt>=1.9.8
+pandas>=2.0.0
+pyqtgraph>=0.13.0
+psutil>=5.9.0
+pyyaml>=6.0
