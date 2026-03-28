@@ -94,14 +94,34 @@ class PacketCapture:
         self._quick_extract(scapy_pkt, pkt)
 
         # Lookup process by port
-        if pkt.src_port:
-            proc = process_manager.get_process_by_port(pkt.src_port)
-            if proc:
-                pkt.process_name = proc
-        if not pkt.process_name and pkt.dst_port:
-            proc = process_manager.get_process_by_port(pkt.dst_port)
-            if proc:
-                pkt.process_name = proc
+        # For local traffic, prefer client process (higher port number)
+        is_local = pkt.src_ip.startswith("127.") or pkt.dst_ip.startswith("127.")
+
+        if is_local:
+            # Get both processes
+            src_proc = process_manager.get_process_by_port(pkt.src_port) if pkt.src_port else None
+            dst_proc = process_manager.get_process_by_port(pkt.dst_port) if pkt.dst_port else None
+
+            # Prefer the process on the higher port (usually the client)
+            if src_proc and dst_proc:
+                if pkt.src_port > pkt.dst_port:
+                    pkt.process_name = src_proc
+                else:
+                    pkt.process_name = dst_proc
+            elif dst_proc:
+                pkt.process_name = dst_proc
+            elif src_proc:
+                pkt.process_name = src_proc
+        else:
+            # For external traffic, check source port first
+            if pkt.src_port:
+                proc = process_manager.get_process_by_port(pkt.src_port)
+                if proc:
+                    pkt.process_name = proc
+            if not pkt.process_name and pkt.dst_port:
+                proc = process_manager.get_process_by_port(pkt.dst_port)
+                if proc:
+                    pkt.process_name = proc
 
         # Store
         self._packets.append(pkt)
