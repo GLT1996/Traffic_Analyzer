@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         # Toolbar
         toolbar = QToolBar()
         self.addToolBar(toolbar)
-        toolbar.addAction("Export PCAP", self._export)
+        toolbar.addAction("Export", self._export)
 
     def _on_packet_selected(self, packet):
         """Handle packet selection - update detail view."""
@@ -243,10 +243,44 @@ class MainWindow(QMainWindow):
             self._packet_list._table.scrollToBottom()
 
     def _export(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Export", "", "PCAP (*.pcap)")
-        if path:
-            if self._capture.save_to_pcap(path):
-                self.statusBar().showMessage(f"Saved to {path}")
+        """Export captured packets in various formats."""
+        path, fmt = QFileDialog.getSaveFileName(
+            self, "Export Packets", "",
+            "PCAP (*.pcap);;JSON (*.json);;CSV (*.csv);;Summary (*.txt)"
+        )
+        if not path:
+            return
+
+        # Ensure correct extension
+        if fmt == "PCAP (*.pcap)" and not path.endswith(".pcap"):
+            path += ".pcap"
+        elif fmt == "JSON (*.json)" and not path.endswith(".json"):
+            path += ".json"
+        elif fmt == "CSV (*.csv)" and not path.endswith(".csv"):
+            path += ".csv"
+        elif fmt == "Summary (*.txt)" and not path.endswith(".txt"):
+            path += ".txt"
+
+        packets = self._capture.get_recent_packets()
+        if not packets:
+            QMessageBox.warning(self, "Warning", "No packets to export")
+            return
+
+        # Export based on format
+        success = False
+        if fmt == "JSON (*.json)":
+            success = ExportManager.to_json(packets, path)
+        elif fmt == "CSV (*.csv)":
+            success = ExportManager.to_csv(packets, path)
+        elif fmt == "Summary (*.txt)":
+            success = ExportManager.to_summary(packets, path)
+        else:
+            success = self._capture.save_to_pcap(path)
+
+        if success:
+            self.statusBar().showMessage(f"Exported {len(packets)} packets to {path}")
+        else:
+            QMessageBox.critical(self, "Error", "Export failed")
 
     def _fmt(self, n):
         for u in ['B', 'KB', 'MB', 'GB']:
